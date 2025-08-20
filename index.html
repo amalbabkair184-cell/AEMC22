@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Signature Sheet</title>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Custom scrollbar for the log container */
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 4px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body class="p-4 sm:p-8 flex items-center justify-center min-h-screen">
+
+    <div class="bg-white p-6 sm:p-10 rounded-xl shadow-lg w-full max-w-2xl">
+        <!-- Form Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">Patient Signature Sheet</h1>
+            <p class="text-gray-500 text-lg">Record patient signatures for each visit.</p>
+        </div>
+
+        <!-- Form Section -->
+        <form id="signature-form" class="space-y-6">
+            <!-- Patient Name Dropdown -->
+            <div>
+                <label for="patient-name" class="block text-lg font-medium text-gray-700 mb-1">Patient Name</label>
+                <select id="patient-name" name="patientName"
+                    class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                    required>
+                    <option value="" disabled selected>Select a patient</option>
+                    <option value="Amal AlZahrani"> Amal AlZahrani </option>
+                    <option value="Ebtisam Sarhan"> Ebtisam Sarhan </option>
+                    <option value="Najat Karkadan"> Najat Karkadan </option>
+                    <option value="Talib Bokhari"> Talib Bokhari </option>
+                    <option value="Homoud AlAhmadi"> Homoud AlAhmadi </option>
+                    <option value="Fayza Al Nahdi"> Fayza Al Nahdi </option>
+                    <option value="Hassan Omar Kurd"> Hassan Omar Kurd </option>
+                </select>
+            </div>
+
+            <!-- Date Input -->
+            <div>
+                <label for="visit-date" class="block text-lg font-medium text-gray-700 mb-1">Date</label>
+                <input type="date" id="visit-date" name="visitDate"
+                    class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                    required>
+            </div>
+
+            <!-- Physical Therapist Name Dropdown -->
+            <div>
+                <label for="therapist-name" class="block text-lg font-medium text-gray-700 mb-1">Physical Therapist Name</label>
+                <select id="therapist-name" name="therapistName"
+                    class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+                    required>
+                    <option value="" disabled selected>Select a therapist</option>
+                    <option value="Dr. Amal Ahmed"> Dr. Amal Ahmed </option>
+                    <option value="Dr. Farah Alrasheed"> Dr. Farah Alrasheed </option>
+                    <option value="Dr. Saeed Al Attas"> Dr. Saeed Al Attas </option>
+                    <option value="Dr. Enas Al Solami"> Dr. Enas Al Solami </option>
+                </select>
+            </div>
+
+            <!-- Patient Signature Field -->
+            <div>
+                <label for="signature-pad" class="block text-lg font-medium text-gray-700 mb-1">Patient Signature</label>
+                <div class="relative border border-gray-300 rounded-lg shadow-sm bg-white p-2">
+                    <canvas id="signature-pad" class="w-full h-48 border border-dashed border-gray-400 rounded-lg"></canvas>
+                </div>
+                <button type="button" id="clear-signature"
+                    class="mt-2 text-sm text-red-600 hover:text-red-800 font-semibold transition-colors duration-150">
+                    Clear Signature
+                </button>
+            </div>
+
+            <!-- Hidden input for the signature image -->
+            <input type="hidden" id="signature-image" name="signatureImage">
+
+            <!-- Submit Button -->
+            <div>
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    Submit Signature
+                </button>
+            </div>
+        </form>
+
+        <!-- Message Box -->
+        <div id="message-box" class="mt-6 hidden">
+            <div id="message-content"
+                class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative">
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // *** IMPORTANT: Paste your Web app URL from Google Apps Script here ***
+        const webAppUrl = 'YOUR_WEB_APP_URL_HERE';
+
+        const form = document.getElementById('signature-form');
+        const messageBox = document.getElementById('message-box');
+        const messageContent = document.getElementById('message-content');
+        const canvas = document.getElementById('signature-pad');
+        const ctx = canvas.getContext('2d');
+        const clearButton = document.getElementById('clear-signature');
+        const signatureImageInput = document.getElementById('signature-image');
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // Set today's date as default
+        document.getElementById('visit-date').valueAsDate = new Date();
+
+        function showMessage(message, type) {
+            messageContent.textContent = message;
+            if (type === 'success') {
+                messageContent.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative';
+            } else if (type === 'error') {
+                messageContent.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative';
+            }
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        }
+
+        // --- Canvas Drawing Logic ---
+        function getCanvasPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const { x, y } = getCanvasPosition(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            [lastX, lastY] = [x, y];
+        }
+
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const { x, y } = getCanvasPosition(e);
+            [lastX, lastY] = [x, y];
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const prevImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            ctx.putImageData(prevImage, 0, 0);
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            canvas.addEventListener('touchstart', startDrawing);
+            canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchend', stopDrawing);
+            clearButton.addEventListener('click', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            });
+        });
+
+        // --- Form Submission Logic ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const patientName = document.getElementById('patient-name').value;
+            const visitDate = document.getElementById('visit-date').value;
+            const therapistName = document.getElementById('therapist-name').value;
+            const signatureImage = canvas.toDataURL('image/png');
+
+            if (signatureImage.length < 2000) {
+                showMessage("Please provide a signature.", "error");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('patientName', patientName);
+            formData.append('visitDate', visitDate);
+            formData.append('therapistName', therapistName);
+            formData.append('signatureImage', signatureImage);
+
+            try {
+                const response = await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const result = await response.json();
+
+                if (result.result === 'success') {
+                    showMessage("Signature submitted successfully!", "success");
+                    form.reset();
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    document.getElementById('visit-date').valueAsDate = new Date();
+                } else {
+                    console.error("Error from script:", result.error);
+                    showMessage("Failed to submit signature. Please try again.", "error");
+                }
+            } catch (error) {
+                console.error("Fetch error:", error);
+                showMessage("Failed to connect to the server. Please try again.", "error");
+            }
+        });
+    </script>
+</body>
+</html>
